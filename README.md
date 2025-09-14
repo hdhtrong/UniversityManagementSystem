@@ -96,21 +96,22 @@ docker-compose up -d
 
 Access the services via:
 
-- API Gateway: http://localhost:7777  
+- API Gateway: http://localhost:9999  
 - Consul UI: http://localhost:8500  
 - Kibana: http://localhost:5601  
 - RabbitMQ Management: http://localhost:15672  
 
 ## 📘 Services Overview
 
-| Service           | Description                                         |
-|-------------------|-----------------------------------------------------|
-| AuthService 7000  | Handles user authentication and authorization       |
-| EduService  7001  | Manages educational content and curriculum          |
-| HRMService  7002  | Manages university HR processes                     |
-| OSSService    -   | Manages student related info						  |
-| ORDService  7003  | Manages research topics and scientific projects     |
-| Gateway     7777  | API gateway that routes requests to services        |
+| Service                     | Description                                         |
+|-------------------          |-----------------------------------------------------|
+| AuthService           9000  | Handles user authentication and authorization       |
+| EduService            9001  | Manages educational content and curriculum          |
+| HRMService            9002  | Manages university HR processes                     |
+| OSSService            9004  | Manages student related info						|
+| ORDService            9003  | Manages research topics and scientific projects     |
+| Gateway               9999  | API gateway that routes requests to services        |
+| NotificationService   9009  | RabbitMQ consumer, Handles notifications            |
 
 ---
 
