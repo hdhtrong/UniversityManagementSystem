@@ -1,0 +1,106 @@
+﻿# === .NET Core & Visual Studio ===
+## Build results
+bin/
+obj/
+out/
+
+## User-specific files
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+## VS Code
+.vscode/
+*.code-workspace
+
+## Rider
+.idea/
+*.sln.iml
+
+## ASP.NET & EF Core
+*.db
+*.db-shm
+*.db-wal
+appsettings.*.json
+secrets.json
+.env
+*.pfx
+*.cer
+*.key
+*.pem
+
+## Logs
+*.log
+logs/
+LogFiles/
+
+## Test Results
+TestResults/
+*.trx
+*.coverage
+*.coveragejson
+
+## NUGET
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# === Docker, Kubernetes ===
+## Docker files generated during build
+**/docker-compose.override.yml
+**/Dockerfile.*
+**/obj/Docker/**/*
+
+# === Publish ===
+**/publish/
+**/artifacts/
+**/wwwroot/lib/
+
+# === System ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# === Backup ===
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# === Ignore .env or sensitive configuration, but keep project config ===
+*.env
+!.env.example
+
+# === Ignore IDE specific folders ===
+.vs/
+_ReSharper*/
+*.ncrunch*
+*.orig
+*.rej
+
+# === Global JetBrains Rider / VS ===
+.idea/
+*.DotSettings.user
+
+# === Optional: Node.js (if using JS libs somewhere like for SPA) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Optional: Python cache if using for scripts ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# === Optional: Terraform (if IaC is used) ===
+*.tfstate
+*.tfstate.*
+.terraform/

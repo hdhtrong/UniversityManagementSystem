@@ -1,0 +1,48 @@
+UniversityManagementSystem/
+│
+├── src/                                  # Source code root
+│   ├── Gateway/
+│   │   └── Gateway.API/                  # API Gateway
+│
+│   ├── EduService/
+│   │   ├── EduService.API/              # Web API Host
+│   │   ├── EduService.Application/      # Use cases, CQRS handlers
+│   │   ├── EduService.Domain/           # Domain entities, interfaces
+│   │   ├── EduService.Infrastructure/   # EF Core, Repositories, Integrations
+│
+│   ├── HRMService/
+│   │   ├── HRMService.API/
+│   │   ├── HRMService.Application/
+│   │   ├── HRMService.Domain/
+│   │   ├── HRMService.Infrastructure/
+│
+│   ├── OSSService/
+│   │   ├── OSSService.API/
+│   │   ├── OSSService.Application/
+│   │   ├── OSSService.Domain/
+│   │   ├── OSSService.Infrastructure/
+│
+│   ├── ORDService/
+│   │   ├── ORDService.API/
+│   │   ├── ORDService.Application/
+│   │   ├── ORDService.Domain/
+│   │   ├── ORDService.Infrastructure/
+│
+│   ├── AuthService/
+│   │   ├── AuthService.API/
+│   │   ├── AuthService.Application/
+│   │   ├── AuthService.Domain/
+│   │   ├── AuthService.Infrastructure/
+│
+│   ├── NotificationService/
+│   │   ├── NotificationService.API/
+│   │   ├── NotificationService.Application/
+│   │   ├── NotificationService.Domain/
+│   │   ├── NotificationService.Infrastructure/
+|
+├   ├── Shared/
+│   │   ├── SharedKernel/                    # Common interfaces, base types, DTOs, value objects
+│   │   ├── Shared.Auth/                    # JWT helpers, user context, authorization utilities
+│
+├── docker-compose.yml                   # Docker orchestration
+└── README.md                            # Project documentation

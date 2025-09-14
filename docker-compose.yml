@@ -1,0 +1,150 @@
+﻿x-common-depends:
+  &common-depends
+  depends_on:
+    - consul
+    - rabbitmq
+
+services:
+  # 🔍 Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.18
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - microservices-network
+
+  # 📊 Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.18
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - microservices-network
+
+  # 🐇 RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    networks:
+      - microservices-network
+
+  # 📦 Consul
+  consul:
+    image: hashicorp/consul:1.15
+    container_name: consul
+    ports:
+      - "8500:8500"
+    volumes:
+      - consuldata:/consul/data
+    networks:
+      - microservices-network
+
+  # 🌐 Gateway
+  gateway:
+    build:
+      context: ./src
+      dockerfile: Gateway/Gateway.API/Dockerfile
+    container_name: gateway
+    ports:
+      - "9999:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+
+  # 🔐 Auth Service
+  authservice:
+    build:
+      context: ./src
+      dockerfile: AuthService/AuthService.API/Dockerfile
+    container_name: authservice
+    ports:
+      - "9000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+
+  # 🎓 Edu Service
+  eduservice:
+    build:
+      context: ./src
+      dockerfile: EduService/EduService.API/Dockerfile
+    container_name: eduservice
+    ports:
+      - "9001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+
+  # 👨‍💼 HRM Service
+  hrmservice:
+    build:
+      context: ./src
+      dockerfile: HRMService/HRMService.API/Dockerfile
+    container_name: hrmservice
+    ports:
+      - "9002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+  # 👨‍💼 ORD Service
+  ordservice:
+    build:
+      context: ./src
+      dockerfile: ORDService/ORDService.API/Dockerfile
+    container_name: ordservice
+    ports:
+      - "9003:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+  # 👨‍💼 Notification Service
+  notificationservice:
+    build:
+      context: ./src
+      dockerfile: NotificationService/NotificationService.API/Dockerfile
+    container_name: notificationservice
+    ports:
+      - "9009:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    <<: *common-depends
+    networks:
+      - microservices-network
+volumes:
+  esdata:
+  rabbitmqdata:
+  consuldata:
+
+networks:
+  microservices-network:
+    driver: bridge

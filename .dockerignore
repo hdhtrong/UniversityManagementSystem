@@ -1,0 +1,22 @@
+
+# Ignore build output
+**/bin/
+**/obj/
+
+# Ignore user-specific files
+*.user
+*.suo
+.vscode/
+.idea/
+*.db
+
+# Ignore Git and other version control
+.git/
+.gitignore
+
+# Ignore OS files
+*.DS_Store
+Thumbs.db
+
+# Optional: ignore test projects if not needed in docker build
+**/*.Tests/

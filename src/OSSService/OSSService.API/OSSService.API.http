@@ -1,0 +1,6 @@
+@OSSService.API_HostAddress = http://localhost:5152
+
+GET {{OSSService.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
