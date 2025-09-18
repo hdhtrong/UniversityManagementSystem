@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\SharedKernel\SharedKernel.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var fees = await _tuitionFeeService.GetAll();
             var result = _mapper.Map<IEnumerable<EduTuitionFeeDto>>(fees);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all tuition fees successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var fee = await _tuitionFeeService.GetById(id);
             if (fee == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Tuition fee not found"));
 
             var dto = _mapper.Map<EduTuitionFeeDto>(fee);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched tuition fee successfully", dto));
         }
 
         [HttpPost]
@@ -50,15 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduTuitionFeeDto dto)
         {
             if (dto == null)
-                return BadRequest("Tuition fee data is required");
+                return BadRequest(new ApiResponse("Tuition fee data is required"));
 
             var entity = _mapper.Map<EduTuitionFee>(dto);
             var result = await _tuitionFeeService.Create(entity);
 
             if (result)
-                return Ok("Tuition fee created successfully");
+                return Ok(new ApiResponse("Tuition fee created successfully", dto));
 
-            return StatusCode(500, "Failed to create tuition fee");
+            return StatusCode(500, new ApiResponse("Failed to create tuition fee"));
         }
 
         [HttpPut("{id}")]
@@ -66,22 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduTuitionFeeDto dto)
         {
             if (dto == null || id != dto.TuitionFeeID.ToString())
-                return BadRequest("Invalid tuition fee data");
+                return BadRequest(new ApiResponse("Invalid tuition fee data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _tuitionFeeService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Tuition fee not found"));
 
             var entity = _mapper.Map<EduTuitionFee>(dto);
             var result = await _tuitionFeeService.Update(entity);
 
             if (result)
-                return Ok("Tuition fee updated successfully");
+                return Ok(new ApiResponse("Tuition fee updated successfully", dto));
 
-            return StatusCode(500, "Failed to update tuition fee");
+            return StatusCode(500, new ApiResponse("Failed to update tuition fee"));
         }
 
         [HttpDelete("{id}")]
@@ -89,17 +90,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _tuitionFeeService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Tuition fee not found"));
 
             var result = await _tuitionFeeService.Delete(guidId);
             if (result)
-                return Ok("Tuition fee deleted successfully");
+                return Ok(new ApiResponse("Tuition fee deleted successfully"));
 
-            return StatusCode(500, "Failed to delete tuition fee");
+            return StatusCode(500, new ApiResponse("Failed to delete tuition fee"));
         }
 
         [HttpPost("filter")]
@@ -107,16 +108,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var fees = _tuitionFeeService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduTuitionFeeDto>>(fees);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched tuition fees with filter successfully", responseData));
         }
     }
 }

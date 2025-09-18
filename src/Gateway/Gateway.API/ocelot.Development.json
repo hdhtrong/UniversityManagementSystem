@@ -281,6 +281,18 @@
       "UpstreamPathTemplate": "/api/hrm/v1/departments/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
     },
+    {
+      "DownstreamPathTemplate": "/api/hrm/v1/employees/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "hrmservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/hrm/v1/employees/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+    },
     //-------ORDService------//
     {
       "DownstreamPathTemplate": "/api/ord/v1/researchprojects/{everything}",

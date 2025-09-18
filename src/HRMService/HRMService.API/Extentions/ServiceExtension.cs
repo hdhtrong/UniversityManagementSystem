@@ -3,6 +3,7 @@ using HRMService.Application.Services.Implementations;
 using HRMService.Infrastructure;
 using HRMService.Infrastructure.Interfaces;
 using HRMService.Infrastructure.Repositories;
+using HRMService.Infrastructure.Repositories.Interfaces;
 using HRMService.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,7 @@ namespace HRMService.API.Extentions
         {
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IHrmDepartmentRepository, HrmDepartmentRepository>();
+            services.AddScoped<IHrmEmployeeRepository, HrmEmployeeRepository>();
 
             return services;
         }
@@ -32,6 +34,7 @@ namespace HRMService.API.Extentions
         public static IServiceCollection AddServices(this IServiceCollection services)
         {
             services.AddScoped<IHrmDepartmentService, HrmDepartmentService>();
+            services.AddScoped<IHrmEmployeeService, HrmEmployeeService>();
             return services;
         }
     }

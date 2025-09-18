@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -19,7 +20,10 @@ namespace EduService.API.Controllers
         private readonly IEduDepartmentService _departmentService;
         private readonly IMapper _mapper;
 
-        public InstructorsController(IEduInstructorService instructorService, IEduDepartmentService departmentService, IMapper mapper)
+        public InstructorsController(
+            IEduInstructorService instructorService,
+            IEduDepartmentService departmentService,
+            IMapper mapper)
         {
             _instructorService = instructorService;
             _departmentService = departmentService;
@@ -32,9 +36,8 @@ namespace EduService.API.Controllers
         {
             var instructors = await _instructorService.GetAll();
             var result = _mapper.Map<IEnumerable<EduInstructorDto>>(instructors);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all instructors successfully", result));
         }
-
 
         [HttpGet("{id}")]
         [AllowAnonymous]
@@ -42,10 +45,10 @@ namespace EduService.API.Controllers
         {
             var instructor = await _instructorService.GetById(id);
             if (instructor == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Instructor not found"));
 
             var dto = _mapper.Map<EduInstructorDto>(instructor);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched instructor successfully", dto));
         }
 
         [HttpPost]
@@ -53,21 +56,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduInstructorDto dto)
         {
             if (dto == null)
-                return BadRequest("Instructor data is required");
+                return BadRequest(new ApiResponse("Instructor data is required"));
 
-            if(dto.DepartmentID.HasValue)
+            if (dto.DepartmentID.HasValue)
             {
-                var checkDept = _departmentService.GetById(dto.DepartmentID.Value);
-                if(checkDept == null)
-                    return BadRequest("Department does not exist");
+                var checkDept = await _departmentService.GetById(dto.DepartmentID.Value);
+                if (checkDept == null)
+                    return BadRequest(new ApiResponse("Department does not exist"));
             }
 
             var entity = _mapper.Map<EduInstructor>(dto);
             var result = await _instructorService.Create(entity);
-            if (result)
-                return Ok("Instructor created successfully");
 
-            return StatusCode(500, "Failed to create instructor");
+            if (result)
+                return Ok(new ApiResponse("Instructor created successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to create instructor"));
         }
 
         [HttpPut("{id}")]
@@ -75,21 +79,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduInstructorDto dto)
         {
             if (dto == null || id != dto.ID.ToString())
-                return BadRequest("Invalid instructor data");
+                return BadRequest(new ApiResponse("Invalid instructor data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existingInstructor = await _instructorService.GetById(guidId);
             if (existingInstructor == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Instructor not found"));
 
             var entity = _mapper.Map<EduInstructor>(dto);
             var result = await _instructorService.Update(entity);
-            if (result)
-                return Ok("Instructor updated successfully");
 
-            return StatusCode(500, "Failed to update instructor");
+            if (result)
+                return Ok(new ApiResponse("Instructor updated successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to update instructor"));
         }
 
         [HttpDelete("{id}")]
@@ -97,17 +102,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existingInstructor = await _instructorService.GetById(guidId);
             if (existingInstructor == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Instructor not found"));
 
             var result = await _instructorService.Delete(guidId);
             if (result)
-                return Ok("Instructor deleted successfully");
+                return Ok(new ApiResponse("Instructor deleted successfully"));
 
-            return StatusCode(500, "Failed to delete instructor");
+            return StatusCode(500, new ApiResponse("Failed to delete instructor"));
         }
 
         [HttpPost("filter")]
@@ -115,16 +120,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var instructors = _instructorService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduInstructorDto>>(instructors);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched instructors with filter successfully", responseData));
         }
     }
 }

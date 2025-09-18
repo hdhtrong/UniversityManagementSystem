@@ -169,9 +169,18 @@ namespace Shared.SharedKernel.CustomQuery
                 if (underlyingType == typeof(DateTime))
                     return jsonElement.GetDateTime();
 
+                if (underlyingType == typeof(Guid))
+                    return jsonElement.ValueKind == JsonValueKind.String
+                        ? Guid.Parse(jsonElement.GetString()!)
+                        : jsonElement.GetGuid();
+             
                 // fallback: dùng string parse
                 return Convert.ChangeType(jsonElement.ToString(), underlyingType);
             }
+
+            // xử lý Guid nếu value là string thuần (không phải JsonElement)
+            if (underlyingType == typeof(Guid) && value is string guidStr)
+                return Guid.Parse(guidStr);
 
             return Convert.ChangeType(value, underlyingType);
         }

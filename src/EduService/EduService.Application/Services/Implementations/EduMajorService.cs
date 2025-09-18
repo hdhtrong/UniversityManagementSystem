@@ -41,7 +41,8 @@ namespace EduService.Application.Services.Implementations
 
         public IQueryable<EduMajor> GetByFilterPaging(FilterRequest filter, out int total)
         {
-            return _unitOfWork.MajorRepository.GetByFilter(filter, out total, null);
+            var allowedFields = new HashSet<string> { "MajorCode", "MajorName", "MajorType", "DepartmentID" };
+            return _unitOfWork.MajorRepository.GetByFilter(filter, out total, allowedFields, ["Department", "Programs"]);
         }
 
         public async Task<EduMajor> GetById(Guid id)

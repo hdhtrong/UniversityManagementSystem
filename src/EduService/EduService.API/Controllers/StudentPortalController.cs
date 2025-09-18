@@ -4,6 +4,7 @@ using EduService.API.Models;
 using EduService.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -27,21 +28,15 @@ namespace EduService.API.Controllers
             _mapper = mapper;
         }
 
-        /// <summary>
-        /// Lấy thông tin học kỳ, bắt đầu từ năm học sinh viên nhập học
-        /// </summary>
         [HttpGet("{studentId}/semesters")]
         [AllowAnonymous]
         public async Task<IActionResult> GetSemesters(string studentId)
         {
             var semesters = await _studentPortalService.GetSemesters(studentId);
             var dtos = _mapper.Map<IEnumerable<EduSemesterDto>>(semesters);
-            return Ok(dtos);
+            return Ok(new ApiResponse("Fetched semesters successfully", dtos));
         }
 
-        /// <summary>
-        /// Lấy thông tin thống kê
-        /// </summary>
         [HttpGet("{studentId}/statistics")]
         [AllowAnonymous]
         public async Task<IActionResult> GetStatistics(string studentId)
@@ -50,12 +45,11 @@ namespace EduService.API.Controllers
             if (validationResult != null) return validationResult;
 
             var statistics = await _studentPortalService.GetStatistics(studentId);
-            return statistics == null ? NotFound() : Ok(statistics);
+            return statistics == null
+                ? NotFound(new ApiResponse("No statistics found"))
+                : Ok(new ApiResponse("Fetched statistics successfully", statistics));
         }
 
-        /// <summary>
-        /// Lấy thông tin cơ bản
-        /// </summary>
         [HttpGet("{studentId}/detail")]
         [AllowAnonymous]
         public async Task<IActionResult> GetDetail(string studentId)
@@ -64,12 +58,11 @@ namespace EduService.API.Controllers
             if (validationResult != null) return validationResult;
 
             var student = await _studentPortalService.GetPersonalDetail(studentId);
-            return student == null ? NotFound() : Ok(student);
+            return student == null
+                ? NotFound(new ApiResponse("Student not found"))
+                : Ok(new ApiResponse("Fetched student detail successfully", student));
         }
 
-        /// <summary>
-        /// Lấy chương trình đào tạo của sinh viên
-        /// </summary>
         [HttpGet("{studentId}/curriculums")]
         [AllowAnonymous]
         public async Task<IActionResult> GetCurriculums(string studentId)
@@ -79,12 +72,9 @@ namespace EduService.API.Controllers
 
             var curriculums = await _studentPortalService.GetCurriculums(studentId);
             var dtos = _mapper.Map<IEnumerable<CurriculumSubjectDto>>(curriculums);
-            return Ok(dtos);
+            return Ok(new ApiResponse("Fetched curriculums successfully", dtos));
         }
 
-        /// <summary>
-        /// Lấy môn tiên quyết
-        /// </summary>
         [HttpGet("{studentId}/prerequisites")]
         [AllowAnonymous]
         public async Task<IActionResult> GetPrerequisites(string studentId)
@@ -93,12 +83,9 @@ namespace EduService.API.Controllers
             if (validationResult != null) return validationResult;
 
             var result = await _studentPortalService.GetStudentPrerequisites(studentId);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched prerequisites successfully", result));
         }
 
-        /// <summary>
-        /// Lấy thời khóa biểu của sinh viên theo học kỳ
-        /// </summary>
         [HttpGet("{studentId}/schedule/{semesterCode}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetScheduleBySemester(string studentId, string semesterCode)
@@ -107,12 +94,9 @@ namespace EduService.API.Controllers
             if (validationResult != null) return validationResult;
 
             var schedules = await _studentPortalService.GetScheduleBySemester(studentId, semesterCode);
-            return Ok(schedules);
+            return Ok(new ApiResponse("Fetched schedule successfully", schedules));
         }
 
-        /// <summary>
-        /// Lấy điểm của sinh viên theo học kỳ
-        /// </summary>
         [HttpGet("{studentId}/grades/{semesterCode}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetGradesBySemester(string studentId, string semesterCode)
@@ -121,12 +105,9 @@ namespace EduService.API.Controllers
             if (validationResult != null) return validationResult;
 
             var grades = await _studentPortalService.GetGradesBySemester(studentId, semesterCode);
-            return Ok(grades);
+            return Ok(new ApiResponse("Fetched grades successfully", grades));
         }
 
-        /// <summary>
-        /// Lấy danh sách học phí
-        /// </summary>
         [HttpGet("{studentId}/tuitions")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTuitions(string studentId)
@@ -136,12 +117,9 @@ namespace EduService.API.Controllers
 
             var tuitions = await _studentPortalService.GetTuitions(studentId);
             var dtos = _mapper.Map<IEnumerable<EduTuitionFeeDto>>(tuitions);
-            return Ok(dtos);
+            return Ok(new ApiResponse("Fetched tuitions successfully", dtos));
         }
 
-        /// <summary>
-        /// Lấy danh sách hóa đơn
-        /// </summary>
         [HttpGet("{studentId}/invoices")]
         [AllowAnonymous]
         public async Task<IActionResult> GetInvoices(string studentId)
@@ -151,30 +129,29 @@ namespace EduService.API.Controllers
 
             var invoices = await _studentPortalService.GetInvoices(studentId);
             var dtos = _mapper.Map<IEnumerable<EduInvoiceDto>>(invoices);
-            return Ok(dtos);
+            return Ok(new ApiResponse("Fetched invoices successfully", dtos));
         }
 
-        /// <summary>
-        /// Cập nhật thông tin cá nhân sinh viên
-        /// </summary>
         [HttpPut("{studentId}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "Student")]
         public async Task<IActionResult> UpdatePersonalInfo(string studentId, [FromBody] EduUpdateStudentDetailDto dto)
         {
-            if (dto == null) return BadRequest("Invalid student data");
+            if (dto == null)
+                return BadRequest(new ApiResponse("Invalid student data"));
 
             var validationResult = ValidateStudentAccess(studentId);
             if (validationResult != null) return validationResult;
 
             var existingStudent = await _studentService.GetByStudentId(studentId);
-            if (existingStudent == null) return NotFound();
+            if (existingStudent == null)
+                return NotFound(new ApiResponse("Student not found"));
 
             _mapper.Map(dto, existingStudent);
 
             var result = await _studentService.Update(existingStudent);
             return result
-                ? Ok("Student Info updated successfully")
-                : Problem("Failed to update student", statusCode: StatusCodes.Status500InternalServerError);
+                ? Ok(new ApiResponse("Student info updated successfully"))
+                : StatusCode(500, new ApiResponse("Failed to update student"));
         }
 
         // 🔹 Helper methods
@@ -187,10 +164,10 @@ namespace EduService.API.Controllers
         {
             var claimStudentId = GetUserLoggedInCode();
             if (claimStudentId == null)
-                return Unauthorized("Token does not contain code (studentId)");
+                return Unauthorized(new ApiResponse("Token does not contain code (studentId)"));
 
             if (!string.Equals(claimStudentId, studentId, StringComparison.OrdinalIgnoreCase))
-                return Forbid("You are not allowed to access other student's info");
+                return Unauthorized(new ApiResponse("You are not allowed to access other student's info"));
 
             return null;
         }

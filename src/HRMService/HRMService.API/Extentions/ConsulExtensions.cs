@@ -11,7 +11,7 @@ namespace HRMService.API.Extentions
             var servicePort = int.Parse(configuration["Consul:ServicePort"] ?? "7002");
             var serviceHost = configuration["Consul:ServiceHost"] ?? "localhost";
 
-            var serviceId = $"{serviceName}-{Guid.NewGuid()}";
+            var serviceId = $"{serviceName}-{serviceHost}-{servicePort}";
 
             var registration = new AgentServiceRegistration
             {

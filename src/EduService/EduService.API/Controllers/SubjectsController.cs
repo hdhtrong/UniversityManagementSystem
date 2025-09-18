@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var subjects = await _subjectService.GetAll();
             var result = _mapper.Map<IEnumerable<EduSubjectDto>>(subjects);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all subjects successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var subject = await _subjectService.GetById(id);
             if (subject == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Subject not found"));
 
             var dto = _mapper.Map<EduSubjectDto>(subject);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched subject successfully", dto));
         }
 
         [HttpGet("{id}/Prerequisites")]
@@ -51,7 +52,7 @@ namespace EduService.API.Controllers
         {
             var subjects = await _subjectService.GetPrerequisitesAsync(id);
             var result = _mapper.Map<IEnumerable<EduSubjectDto>>(subjects);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched prerequisites successfully", result));
         }
 
         [HttpPost]
@@ -59,38 +60,38 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduSubjectDto dto)
         {
             if (dto == null)
-                return BadRequest("Subject data is required");
+                return BadRequest(new ApiResponse("Subject data is required"));
 
             var entity = _mapper.Map<EduSubject>(dto);
             var result = await _subjectService.Create(entity);
 
             if (result)
-                return Ok("Subject created successfully");
+                return Ok(new ApiResponse("Subject created successfully", dto));
 
-            return StatusCode(500, "Failed to create subject");
+            return StatusCode(500, new ApiResponse("Failed to create subject"));
         }
 
         [HttpPut("{id}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
         public async Task<IActionResult> Update(string id, [FromBody] EduSubjectDto dto)
         {
-            if (dto == null || id != dto.SubjectID.ToString())
-                return BadRequest("Invalid subject data");
-
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
+
+            if (dto == null || guidId != dto.SubjectID)
+                return BadRequest(new ApiResponse("Invalid subject data"));
 
             var existing = await _subjectService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Subject not found"));
 
             var entity = _mapper.Map<EduSubject>(dto);
             var result = await _subjectService.Update(entity);
 
             if (result)
-                return Ok("Subject updated successfully");
+                return Ok(new ApiResponse("Subject updated successfully", dto));
 
-            return StatusCode(500, "Failed to update subject");
+            return StatusCode(500, new ApiResponse("Failed to update subject"));
         }
 
         [HttpDelete("{id}")]
@@ -98,17 +99,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _subjectService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Subject not found"));
 
             var result = await _subjectService.Delete(guidId);
             if (result)
-                return Ok("Subject deleted successfully");
+                return Ok(new ApiResponse("Subject deleted successfully"));
 
-            return StatusCode(500, "Failed to delete subject");
+            return StatusCode(500, new ApiResponse("Failed to delete subject"));
         }
 
         [HttpPost("filter")]
@@ -116,18 +117,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var subjects = _subjectService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduSubjectDto>>(subjects);
 
-            return Ok(new
+            var responseData = new
             {
                 filter.PageIndex,
                 filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched subjects with filter successfully", responseData));
         }
     }
 }

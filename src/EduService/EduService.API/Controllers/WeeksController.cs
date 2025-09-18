@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -28,9 +29,12 @@ namespace EduService.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetCurrentWeek()
         {
-            var currentSemester = await _weekService.GetCurrentWeek();
-            var dto = _mapper.Map<EduWeekDto>(currentSemester);
-            return Ok(dto);
+            var currentWeek = await _weekService.GetCurrentWeek();
+            if (currentWeek == null)
+                return NotFound(new ApiResponse("No current week found"));
+
+            var dto = _mapper.Map<EduWeekDto>(currentWeek);
+            return Ok(new ApiResponse("Fetched current week successfully", dto));
         }
 
         [HttpGet]
@@ -39,7 +43,7 @@ namespace EduService.API.Controllers
         {
             var weeks = await _weekService.GetAll();
             var result = _mapper.Map<IEnumerable<EduWeekDto>>(weeks);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all weeks successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -48,10 +52,10 @@ namespace EduService.API.Controllers
         {
             var week = await _weekService.GetById(id);
             if (week == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Week not found"));
 
             var dto = _mapper.Map<EduWeekDto>(week);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched week successfully", dto));
         }
 
         [HttpPost]
@@ -59,38 +63,38 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduWeekDto dto)
         {
             if (dto == null)
-                return BadRequest("Week data is required");
+                return BadRequest(new ApiResponse("Week data is required"));
 
             var entity = _mapper.Map<EduWeek>(dto);
             var result = await _weekService.Create(entity);
 
             if (result)
-                return Ok("Week created successfully");
+                return Ok(new ApiResponse("Week created successfully", dto));
 
-            return StatusCode(500, "Failed to create week");
+            return StatusCode(500, new ApiResponse("Failed to create week"));
         }
 
         [HttpPut("{id}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
         public async Task<IActionResult> Update(string id, [FromBody] EduWeekDto dto)
         {
-            if (dto == null || id != dto.WeekID.ToString())
-                return BadRequest("Invalid week data");
-
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
+
+            if (dto == null || guidId != dto.WeekID)
+                return BadRequest(new ApiResponse("Invalid week data"));
 
             var existing = await _weekService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Week not found"));
 
             var entity = _mapper.Map<EduWeek>(dto);
             var result = await _weekService.Update(entity);
 
             if (result)
-                return Ok("Week updated successfully");
+                return Ok(new ApiResponse("Week updated successfully", dto));
 
-            return StatusCode(500, "Failed to update week");
+            return StatusCode(500, new ApiResponse("Failed to update week"));
         }
 
         [HttpDelete("{id}")]
@@ -98,17 +102,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _weekService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Week not found"));
 
             var result = await _weekService.Delete(guidId);
             if (result)
-                return Ok("Week deleted successfully");
+                return Ok(new ApiResponse("Week deleted successfully"));
 
-            return StatusCode(500, "Failed to delete week");
+            return StatusCode(500, new ApiResponse("Failed to delete week"));
         }
 
         [HttpPost("filter")]
@@ -116,16 +120,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var weeks = _weekService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduWeekDto>>(weeks);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched weeks with filter successfully", responseData));
         }
     }
 }

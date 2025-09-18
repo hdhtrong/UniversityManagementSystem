@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var curriculums = await _curriculumService.GetAll();
             var result = _mapper.Map<IEnumerable<EduCurriculumDto>>(curriculums);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched curriculums successfully", result));
         }
 
         [HttpGet("{programId}/{subjectId}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var curriculum = await _curriculumService.GetById(programId, subjectId);
             if (curriculum == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Curriculum not found"));
 
             var dto = _mapper.Map<EduCurriculumDto>(curriculum);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched curriculum successfully", dto));
         }
 
         [HttpGet("programs/{programId}/subjects")]
@@ -51,7 +52,7 @@ namespace EduService.API.Controllers
         {
             var curriculums = await _curriculumService.GetSubjectsByProgram(programId);
             var result = _mapper.Map<IEnumerable<CurriculumSubjectDto>>(curriculums);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched subjects by program successfully", result));
         }
 
         [HttpGet("programs/{programId}/subjects/semester/{semesterOrder}")]
@@ -60,7 +61,7 @@ namespace EduService.API.Controllers
         {
             var curriculums = await _curriculumService.GetSubjectsByProgramAndSemester(programId, semesterOrder);
             var result = _mapper.Map<IEnumerable<CurriculumSubjectDto>>(curriculums);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched subjects by program and semester successfully", result));
         }
 
         [HttpPost]
@@ -68,15 +69,16 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduCurriculumDto dto)
         {
             if (dto == null)
-                return BadRequest("Curriculum data is required");
+                return BadRequest(new ApiResponse("Curriculum data is required"));
 
             var entity = _mapper.Map<EduCurriculum>(dto);
-            var result = await _curriculumService.Create(entity);
+            var success = await _curriculumService.Create(entity);
 
-            if (result)
-                return Ok("Curriculum created successfully");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to create curriculum"));
 
-            return StatusCode(500, "Failed to create curriculum");
+            var createdDto = _mapper.Map<EduCurriculumDto>(entity);
+            return Ok(new ApiResponse("Curriculum created successfully", createdDto));
         }
 
         [HttpPut("{programId}/{subjectId}")]
@@ -84,19 +86,20 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(Guid programId, Guid subjectId, [FromBody] EduCurriculumDto dto)
         {
             if (dto == null || dto.ProgramID != programId || dto.SubjectID != subjectId)
-                return BadRequest("Invalid curriculum data");
+                return BadRequest(new ApiResponse("Invalid curriculum data"));
 
             var existing = await _curriculumService.GetById(programId, subjectId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Curriculum not found"));
 
             var entity = _mapper.Map<EduCurriculum>(dto);
-            var result = await _curriculumService.Update(entity);
+            var success = await _curriculumService.Update(entity);
 
-            if (result)
-                return Ok("Curriculum updated successfully");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to update curriculum"));
 
-            return StatusCode(500, "Failed to update curriculum");
+            var updatedDto = _mapper.Map<EduCurriculumDto>(entity);
+            return Ok(new ApiResponse("Curriculum updated successfully", updatedDto));
         }
 
         [HttpDelete("{programId}/{subjectId}")]
@@ -105,13 +108,13 @@ namespace EduService.API.Controllers
         {
             var existing = await _curriculumService.GetById(programId, subjectId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Curriculum not found"));
 
-            var result = await _curriculumService.Delete(programId, subjectId);
-            if (result)
-                return Ok("Curriculum deleted successfully");
+            var success = await _curriculumService.Delete(programId, subjectId);
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to delete curriculum"));
 
-            return StatusCode(500, "Failed to delete curriculum");
+            return Ok(new ApiResponse("Curriculum deleted successfully"));
         }
 
         [HttpPost("filter")]
@@ -119,16 +122,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var curriculums = _curriculumService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduCurriculumDto>>(curriculums);
 
-            return Ok(new
+            var response = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched curriculums with filter successfully", response));
         }
     }
 }

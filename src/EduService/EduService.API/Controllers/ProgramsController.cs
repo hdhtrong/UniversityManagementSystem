@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var programs = await _programService.GetAll();
             var result = _mapper.Map<IEnumerable<EduProgramDto>>(programs);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all programs successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var program = await _programService.GetById(id);
             if (program == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Program not found"));
 
             var dto = _mapper.Map<EduProgramDto>(program);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched program successfully", dto));
         }
 
         [HttpPost]
@@ -50,14 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduProgramDto dto)
         {
             if (dto == null)
-                return BadRequest("Program data is required");
+                return BadRequest(new ApiResponse("Program data is required"));
 
             var entity = _mapper.Map<EduProgram>(dto);
             var result = await _programService.Create(entity);
-            if (result)
-                return Ok("Program created successfully");
 
-            return StatusCode(500, "Failed to create program");
+            if (result)
+                return Ok(new ApiResponse("Program created successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to create program"));
         }
 
         [HttpPut("{id}")]
@@ -65,21 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduProgramDto dto)
         {
             if (dto == null || id != dto.ProgramID.ToString())
-                return BadRequest("Invalid program data");
+                return BadRequest(new ApiResponse("Invalid program data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _programService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Program not found"));
 
             var entity = _mapper.Map<EduProgram>(dto);
             var result = await _programService.Update(entity);
-            if (result)
-                return Ok("Program updated successfully");
 
-            return StatusCode(500, "Failed to update program");
+            if (result)
+                return Ok(new ApiResponse("Program updated successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to update program"));
         }
 
         [HttpDelete("{id}")]
@@ -87,17 +90,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _programService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Program not found"));
 
             var result = await _programService.Delete(guidId);
             if (result)
-                return Ok("Program deleted successfully");
+                return Ok(new ApiResponse("Program deleted successfully"));
 
-            return StatusCode(500, "Failed to delete program");
+            return StatusCode(500, new ApiResponse("Failed to delete program"));
         }
 
         [HttpPost("filter")]
@@ -105,16 +108,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var programs = _programService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduProgramDto>>(programs);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched programs with filter successfully", responseData));
         }
     }
 }

@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var invoices = await _invoiceService.GetAll();
             var result = _mapper.Map<IEnumerable<EduInvoiceDto>>(invoices);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all invoices successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var invoice = await _invoiceService.GetById(id);
             if (invoice == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Invoice not found"));
 
             var dto = _mapper.Map<EduInvoiceDto>(invoice);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched invoice successfully", dto));
         }
 
         [HttpPost]
@@ -50,15 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduInvoiceDto dto)
         {
             if (dto == null)
-                return BadRequest("Invoice data is required");
+                return BadRequest(new ApiResponse("Invoice data is required"));
 
             var entity = _mapper.Map<EduInvoice>(dto);
             var result = await _invoiceService.Create(entity);
 
             if (result)
-                return Ok("Invoice created successfully");
+                return Ok(new ApiResponse("Invoice created successfully", dto));
 
-            return StatusCode(500, "Failed to create invoice");
+            return StatusCode(500, new ApiResponse("Failed to create invoice"));
         }
 
         [HttpPut("{id}")]
@@ -66,22 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduInvoiceDto dto)
         {
             if (dto == null || id != dto.InvoiceID.ToString())
-                return BadRequest("Invalid invoice data");
+                return BadRequest(new ApiResponse("Invalid invoice data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _invoiceService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Invoice not found"));
 
             var entity = _mapper.Map<EduInvoice>(dto);
             var result = await _invoiceService.Update(entity);
 
             if (result)
-                return Ok("Invoice updated successfully");
+                return Ok(new ApiResponse("Invoice updated successfully", dto));
 
-            return StatusCode(500, "Failed to update invoice");
+            return StatusCode(500, new ApiResponse("Failed to update invoice"));
         }
 
         [HttpDelete("{id}")]
@@ -89,17 +90,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _invoiceService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Invoice not found"));
 
             var result = await _invoiceService.Delete(guidId);
             if (result)
-                return Ok("Invoice deleted successfully");
+                return Ok(new ApiResponse("Invoice deleted successfully"));
 
-            return StatusCode(500, "Failed to delete invoice");
+            return StatusCode(500, new ApiResponse("Failed to delete invoice"));
         }
 
         [HttpPost("filter")]
@@ -107,16 +108,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var invoices = _invoiceService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduInvoiceDto>>(invoices);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched invoices with filter successfully", responseData));
         }
     }
 }

@@ -11,7 +11,7 @@ namespace AuthService.API.Extentions
             var servicePort = int.Parse(configuration["Consul:ServicePort"] ?? "7000");
             var serviceHost = configuration["Consul:ServiceHost"] ?? "localhost";
 
-            var serviceId = $"{serviceName}-{Guid.NewGuid()}";
+            var serviceId = $"{serviceName}-{serviceHost}-{servicePort}";
 
             var registration = new AgentServiceRegistration
             {

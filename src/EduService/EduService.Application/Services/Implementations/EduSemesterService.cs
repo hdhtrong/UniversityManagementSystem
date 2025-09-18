@@ -41,7 +41,8 @@ namespace EduService.Application.Services.Implementations
 
         public IQueryable<EduSemester> GetByFilterPaging(FilterRequest filter, out int total)
         {
-            return _unitOfWork.SemesterRepository.GetByFilter(filter, out total, null);
+            var allowedFields = new HashSet<string> { "SemesterName", "SemesterCode", "YearID" };
+            return _unitOfWork.SemesterRepository.GetByFilter(filter, out total, allowedFields, ["AcademicYear","Weeks"]);
         }
 
         public async Task<EduSemester> GetById(Guid id)

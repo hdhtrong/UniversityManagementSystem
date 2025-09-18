@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var grades = await _gradeService.GetAll();
             var result = _mapper.Map<IEnumerable<EduGradeDto>>(grades);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all grades successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var grade = await _gradeService.GetById(id);
             if (grade == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Grade not found"));
 
             var dto = _mapper.Map<EduGradeDto>(grade);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched grade successfully", dto));
         }
 
         [HttpPost]
@@ -50,14 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduGradeDto dto)
         {
             if (dto == null)
-                return BadRequest("Grade data is required");
+                return BadRequest(new ApiResponse("Grade data is required"));
 
             var entity = _mapper.Map<EduGrade>(dto);
             var result = await _gradeService.Create(entity);
-            if (result)
-                return Ok("Grade created successfully");
 
-            return StatusCode(500, "Failed to create grade");
+            if (result)
+                return Ok(new ApiResponse("Grade created successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to create grade"));
         }
 
         [HttpPut("{id}")]
@@ -65,21 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduGradeDto dto)
         {
             if (dto == null || id != dto.GradeID.ToString())
-                return BadRequest("Invalid grade data");
+                return BadRequest(new ApiResponse("Invalid grade data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _gradeService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Grade not found"));
 
             var entity = _mapper.Map<EduGrade>(dto);
             var result = await _gradeService.Update(entity);
-            if (result)
-                return Ok("Grade updated successfully");
 
-            return StatusCode(500, "Failed to update grade");
+            if (result)
+                return Ok(new ApiResponse("Grade updated successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to update grade"));
         }
 
         [HttpDelete("{id}")]
@@ -87,17 +90,18 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _gradeService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Grade not found"));
 
             var result = await _gradeService.Delete(guidId);
-            if (result)
-                return Ok("Grade deleted successfully");
 
-            return StatusCode(500, "Failed to delete grade");
+            if (result)
+                return Ok(new ApiResponse("Grade deleted successfully"));
+
+            return StatusCode(500, new ApiResponse("Failed to delete grade"));
         }
 
         [HttpPost("filter")]
@@ -105,16 +109,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var grades = _gradeService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduGradeDto>>(grades);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched grades with filter successfully", responseData));
         }
     }
 }

@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -32,18 +33,19 @@ namespace EduService.API.Controllers
         {
             var departments = await _departmentService.GetAll();
             var result = _mapper.Map<IEnumerable<EduDepartmentDto>>(departments);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched departments successfully", result));
         }
 
-        [HttpGet("{id}/Instructors")]
+        [HttpGet("{id}/instructors")]
         [AllowAnonymous]
         public IActionResult GetInstructors(Guid id)
         {
             var instructors = _instructorService.GetByDepartmentId(id);
             if (instructors == null)
-                return NotFound();
+                return NotFound(new ApiResponse("No instructors found for this department"));
+
             var dto = _mapper.Map<IEnumerable<EduInstructorDto>>(instructors);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched instructors successfully", dto));
         }
 
         [HttpGet("{id}")]
@@ -52,10 +54,10 @@ namespace EduService.API.Controllers
         {
             var department = await _departmentService.GetById(id);
             if (department == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Department not found"));
 
             var dto = _mapper.Map<EduDepartmentDto>(department);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched department successfully", dto));
         }
 
         [HttpPost]
@@ -63,14 +65,16 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduDepartmentDto dto)
         {
             if (dto == null)
-                return BadRequest("Department data is required");
+                return BadRequest(new ApiResponse("Department data is required"));
 
             var entity = _mapper.Map<EduDepartment>(dto);
-            var result = await _departmentService.Create(entity);
-            if (result)
-                return Ok("Department created successfully");
+            var success = await _departmentService.Create(entity);
 
-            return StatusCode(500, "Failed to create department");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to create department"));
+
+            var createdDto = _mapper.Map<EduDepartmentDto>(entity);
+            return Ok(new ApiResponse("Department created successfully", createdDto));
         }
 
         [HttpPut("{id}")]
@@ -78,21 +82,23 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduDepartmentDto dto)
         {
             if (dto == null || id != dto.DepartmentID.ToString())
-                return BadRequest("Invalid department data");
+                return BadRequest(new ApiResponse("Invalid department data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _departmentService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Department not found"));
 
             var entity = _mapper.Map<EduDepartment>(dto);
-            var result = await _departmentService.Update(entity);
-            if (result)
-                return Ok("Department updated successfully");
+            var success = await _departmentService.Update(entity);
 
-            return StatusCode(500, "Failed to update department");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to update department"));
+
+            var updatedDto = _mapper.Map<EduDepartmentDto>(entity);
+            return Ok(new ApiResponse("Department updated successfully", updatedDto));
         }
 
         [HttpDelete("{id}")]
@@ -100,17 +106,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _departmentService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Department not found"));
 
-            var result = await _departmentService.Delete(guidId);
-            if (result)
-                return Ok("Department deleted successfully");
+            var success = await _departmentService.Delete(guidId);
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to delete department"));
 
-            return StatusCode(500, "Failed to delete department");
+            return Ok(new ApiResponse("Department deleted successfully"));
         }
 
         [HttpPost("filter")]
@@ -118,16 +124,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var list = _departmentService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduDepartmentDto>>(list);
 
-            return Ok(new
+            var response = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched departments with filter successfully", response));
         }
     }
 }

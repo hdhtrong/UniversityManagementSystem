@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -32,31 +33,31 @@ namespace EduService.API.Controllers
         {
             var classes = await _classService.GetAll();
             var result = _mapper.Map<IEnumerable<EduClassDto>>(classes);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all classes", result));
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(Guid id)
         {
             var eduClass = await _classService.GetById(id);
             if (eduClass == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Class not found"));
 
             var dto = _mapper.Map<EduClassDto>(eduClass);
-            return Ok(dto);
+            return Ok(new ApiResponse("Class fetched successfully", dto));
         }
 
-        [HttpGet("{id}/students")]
+        [HttpGet("{id:guid}/students")]
         [AllowAnonymous]
         public IActionResult GetStudents(Guid id)
         {
             var students = _studentService.GetByClassId(id);
             if (students == null)
-                return NotFound();
+                return NotFound(new ApiResponse("No students found for this class"));
 
             var result = _mapper.Map<IEnumerable<EduStudentDto>>(students);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched students by class", result));
         }
 
         [HttpPost]
@@ -64,54 +65,51 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduClassDto dto)
         {
             if (dto == null)
-                return BadRequest("Class data is required");
+                return BadRequest(new ApiResponse("Class data is required"));
 
             var entity = _mapper.Map<EduClass>(dto);
             var result = await _classService.Create(entity);
-            if (result)
-                return Ok("Class created successfully");
 
-            return StatusCode(500, "Failed to create class");
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to create class"));
+
+            return CreatedAtAction(nameof(GetById), new { id = entity.ClassID },
+                new ApiResponse("Class created successfully", dto));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
-        public async Task<IActionResult> Update(string id, [FromBody] EduClassDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] EduClassDto dto)
         {
-            if (dto == null || id != dto.ClassID.ToString())
-                return BadRequest("Invalid class data");
+            if (dto == null || id != dto.ClassID)
+                return BadRequest(new ApiResponse("Invalid class data"));
 
-            if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
-
-            var existing = await _classService.GetById(guidId);
+            var existing = await _classService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Class not found"));
 
             var entity = _mapper.Map<EduClass>(dto);
             var result = await _classService.Update(entity);
-            if (result)
-                return Ok("Class updated successfully");
 
-            return StatusCode(500, "Failed to update class");
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to update class"));
+
+            return Ok(new ApiResponse("Class updated successfully", dto));
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(Guid id)
         {
-            if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
-
-            var existing = await _classService.GetById(guidId);
+            var existing = await _classService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Class not found"));
 
-            var result = await _classService.Delete(guidId);
-            if (result)
-                return Ok("Class deleted successfully");
+            var result = await _classService.Delete(id);
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to delete class"));
 
-            return StatusCode(500, "Failed to delete class");
+            return Ok(new ApiResponse("Class deleted successfully"));
         }
 
         [HttpPost("filter")]
@@ -119,16 +117,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var classes = _classService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduClassDto>>(classes);
 
-            return Ok(new
+            var response = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Paged classes fetched successfully", response));
         }
     }
 }

@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Http;
 using MassTransit;
 using Microsoft.AspNetCore.Routing;
 using SharedKernel.Infrastructure;
+using SharedKernel.Models;
+using Azure;
+using MassTransit.NewIdProviders;
 
 namespace AuthService.Tests.Controllers
 {
@@ -78,7 +81,8 @@ namespace AuthService.Tests.Controllers
             _jwtManagerMock = new Mock<IJwtManagerService>();
             _loggerMock = new Mock<ILogger<AuthController>>();
             _publishMock = new Mock<IPublishEndpoint>();
-            _linkGeneratorMock = new Mock<LinkGenerator>();
+            _configMock = new Mock<IConfiguration>();
+            _rabbitCheckerMock = new Mock<RabbitMqHealthChecker>();
 
             _controller = new AuthController(
                 _roleManagerMock.Object,
@@ -87,11 +91,10 @@ namespace AuthService.Tests.Controllers
                 _jwtManagerMock.Object,
                 _loggerMock.Object,
                 _publishMock.Object,
-                _linkGeneratorMock.Object,
-                _rabbitCheckerMock.Object
+                _rabbitCheckerMock.Object,
+                _configMock.Object
             );
         }
-
 
         // ✅ TEST CASE 0: Username and password valid
         [Fact]
@@ -129,12 +132,13 @@ namespace AuthService.Tests.Controllers
                            .Returns(expectedTokens);
 
             // Act
-            var result = await _controller.AuthenticatePassword(username, password);
+            var result = await _controller.AuthenticatePassword(new API.Models.AuthenticationPasswordDto() { Username = username, Password = password });
 
             // Assert
-            var okResult = result as OkObjectResult;
-            okResult.Should().NotBeNull();
-            okResult!.Value.Should().BeEquivalentTo(expectedTokens);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var response = Assert.IsType<ApiResponse>(okResult.Value);
+            response.Message.Should().Be("Login successful");
+            response.Data.Should().BeEquivalentTo(expectedTokens);
         }
 
         // ✅ TEST CASE 1: Username không tồn tại
@@ -145,13 +149,14 @@ namespace AuthService.Tests.Controllers
             _userManagerMock.Setup(x => x.FindByNameAsync("nonexistent"))
                             .ReturnsAsync((AppUser)null);
 
+            var dto = new API.Models.AuthenticationPasswordDto() { Username = "nonexistent", Password = "anyPassword" };
             // Act
-            var result = await _controller.AuthenticatePassword("nonexistent", "anyPassword");
+            var result = await _controller.AuthenticatePassword(dto);
 
             // Assert
-            var badRequest = result as BadRequestObjectResult;
-            badRequest.Should().NotBeNull();
-            badRequest!.Value.Should().Be("Username does not exist in the database!");
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            var response = Assert.IsType<ApiResponse>(badRequest.Value);
+            response.Message.Should().Be("Username does not exist in the database!");
         }
 
         // ✅ TEST CASE 2: Sai mật khẩu
@@ -167,13 +172,14 @@ namespace AuthService.Tests.Controllers
             _signInManagerMock.Setup(x => x.CheckPasswordSignInAsync(user, "wrongpassword", true))
                               .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Failed);
 
+            var dto = new API.Models.AuthenticationPasswordDto() { Username = "testuser", Password = "wrongpassword" };
             // Act
-            var result = await _controller.AuthenticatePassword("testuser", "wrongpassword");
+            var result = await _controller.AuthenticatePassword(dto);
 
             // Assert
-            var badRequest = result as BadRequestObjectResult;
-            badRequest.Should().NotBeNull();
-            badRequest!.Value.Should().Be("Incorrect password!");
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            var response = Assert.IsType<ApiResponse>(badRequest.Value);
+            response.Message.Should().Be("Incorrect password!");
         }
 
         // ✅ TEST CASE 3: Xảy ra exception
@@ -184,13 +190,14 @@ namespace AuthService.Tests.Controllers
             _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
                             .ThrowsAsync(new Exception("unexpected error"));
 
+            var dto = new API.Models.AuthenticationPasswordDto() { Username = "testuser", Password = "password" };
             // Act
-            var result = await _controller.AuthenticatePassword("testuser", "password");
+            var result = await _controller.AuthenticatePassword(dto);
 
             // Assert
-            var badRequest = result as BadRequestObjectResult;
-            badRequest.Should().NotBeNull();
-            badRequest!.Value.Should().Be("Internal server error");
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            var response = Assert.IsType<ApiResponse>(badRequest.Value);
+            response.Message.Should().Be("Internal server error");
         }
     }
 }

@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var sections = await _sectionService.GetAll();
             var result = _mapper.Map<IEnumerable<EduCourseSectionDto>>(sections);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched course sections successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var section = await _sectionService.GetById(id);
             if (section == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Course section not found"));
 
             var dto = _mapper.Map<EduCourseSectionDto>(section);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched course section successfully", dto));
         }
 
         [HttpPost]
@@ -50,14 +51,16 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduCourseSectionDto dto)
         {
             if (dto == null)
-                return BadRequest("Course section data is required");
+                return BadRequest(new ApiResponse("Course section data is required"));
 
             var entity = _mapper.Map<EduCourseSection>(dto);
-            var result = await _sectionService.Create(entity);
-            if (result)
-                return Ok("Course section created successfully");
+            var success = await _sectionService.Create(entity);
 
-            return StatusCode(500, "Failed to create course section");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to create course section"));
+
+            var createdDto = _mapper.Map<EduCourseSectionDto>(entity);
+            return Ok(new ApiResponse("Course section created successfully", createdDto));
         }
 
         [HttpPut("{id}")]
@@ -65,21 +68,23 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduCourseSectionDto dto)
         {
             if (dto == null || id != dto.SectionID.ToString())
-                return BadRequest("Invalid course section data");
+                return BadRequest(new ApiResponse("Invalid course section data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _sectionService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Course section not found"));
 
             var entity = _mapper.Map<EduCourseSection>(dto);
-            var result = await _sectionService.Update(entity);
-            if (result)
-                return Ok("Course section updated successfully");
+            var success = await _sectionService.Update(entity);
 
-            return StatusCode(500, "Failed to update course section");
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to update course section"));
+
+            var updatedDto = _mapper.Map<EduCourseSectionDto>(entity);
+            return Ok(new ApiResponse("Course section updated successfully", updatedDto));
         }
 
         [HttpDelete("{id}")]
@@ -87,17 +92,17 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _sectionService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Course section not found"));
 
-            var result = await _sectionService.Delete(guidId);
-            if (result)
-                return Ok("Course section deleted successfully");
+            var success = await _sectionService.Delete(guidId);
+            if (!success)
+                return StatusCode(500, new ApiResponse("Failed to delete course section"));
 
-            return StatusCode(500, "Failed to delete course section");
+            return Ok(new ApiResponse("Course section deleted successfully"));
         }
 
         [HttpPost("filter")]
@@ -105,16 +110,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var sections = _sectionService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduCourseSectionDto>>(sections);
 
-            return Ok(new
+            var response = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched course sections with filter successfully", response));
         }
     }
 }

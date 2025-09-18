@@ -1,12 +1,14 @@
 ﻿using Asp.Versioning;
+using AuthService.API.Models;
 using AuthService.Domain.Entities;
 using AuthService.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel;
+using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 using System.Security.Claims;
-
 
 namespace AuthService.API.Controllers
 {
@@ -17,8 +19,7 @@ namespace AuthService.API.Controllers
     public class RolesController : ControllerBase
     {
         private readonly RoleManager<AppRole> _roleManager;
-
-        protected readonly ILogger<RolesController> _logger;
+        private readonly ILogger<RolesController> _logger;
 
         public RolesController(RoleManager<AppRole> roleManager, ILogger<RolesController> logger)
         {
@@ -30,100 +31,81 @@ namespace AuthService.API.Controllers
         public IActionResult GetAll()
         {
             var roles = _roleManager.Roles.ToList();
-            return Ok(roles);
+            return Ok(new ApiResponse("Roles retrieved successfully", roles));
         }
 
-        [HttpPost]
-        [Route("Create")]
+        [HttpPost("Create")]
         public async Task<IActionResult> Create(RoleDto dto)
         {
             var roleExist = await _roleManager.RoleExistsAsync(dto.Name.Trim());
-            if (!roleExist)
-            {
-                var role = new AppRole(dto.Name.Trim());
-                role.Id = Guid.NewGuid().ToString();
-                role.Description = dto.Description.Trim();
-                var roleResult = await _roleManager.CreateAsync(role);
+            if (roleExist)
+                return BadRequest(new ApiResponse($"Role {dto.Name} already exists"));
 
-                if (roleResult.Succeeded)
-                {
-                    _logger.LogInformation(1, "Roles Added");
-                    return Ok(new { result = $"Role {dto.Name} added successfully" });
-                }
-                else
-                {
-                    string errs = "";
-                    foreach (var err in roleResult.Errors)
-                    {
-                        errs += err.Description + "\n ";
-                    }
-                    _logger.LogInformation(2, "Error: " + errs);
-                    return BadRequest(new { error = $"Issue adding the new {role} role, errors: " + errs });
-                }
+            var role = new AppRole(dto.Name.Trim())
+            {
+                Id = Guid.NewGuid().ToString(),
+                Description = dto.Description.Trim()
+            };
+
+            var roleResult = await _roleManager.CreateAsync(role);
+            if (!roleResult.Succeeded)
+            {
+                var errs = string.Join("; ", roleResult.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed to create role {RoleName}: {Errors}", dto.Name, errs);
+                return BadRequest(new ApiResponse($"Failed to create role {dto.Name}", errs));
             }
-            return BadRequest(new { error = $"Role {dto.Name} already exist" });
+
+            _logger.LogInformation("Role {RoleName} created successfully", dto.Name);
+            return Ok(new ApiResponse($"Role {dto.Name} created successfully", role));
         }
 
-        [HttpGet]
-        [Route("GetRoleClaims")]
+        [HttpGet("GetRoleClaims")]
         public async Task<IActionResult> GetRoleClaims(string roleName)
         {
             var role = await _roleManager.FindByNameAsync(roleName);
-            if (role != null)
-            {
-                var claims = await _roleManager.GetClaimsAsync(role);
-                return Ok(claims);
-            }
-            return BadRequest(new { error = "Unable to find role " + roleName });      
+            if (role == null)
+                return NotFound(new ApiResponse($"Role {roleName} not found"));
+
+            var claims = await _roleManager.GetClaimsAsync(role);
+            return Ok(new ApiResponse($"Claims for role {roleName} retrieved", claims));
         }
 
-        [HttpPost]
-        [Route("AddClaimToRole")]
-        public async Task<IActionResult> AddClaimToRole(string roleName, string claim)
+        [HttpPost("AddClaimToRole")]
+        public async Task<IActionResult> AddClaimToRole([FromBody] RoleToClaimDto dto)
         {
-            var role = await _roleManager.FindByNameAsync(roleName);
+            var role = await _roleManager.FindByNameAsync(dto.RoleName);
+            if (role == null)
+                return NotFound(new ApiResponse($"Role {dto.RoleName} not found"));
 
-            if (role != null)
+            var result = await _roleManager.AddClaimAsync(role, new Claim(Constants.CREDENTIAL_CLAIM, dto.ClaimValue));
+            if (!result.Succeeded)
             {
-                var result = await _roleManager.AddClaimAsync(role, new Claim(Constants.CREDENTIAL_CLAIM, claim));
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation(1, $"Claim {claim} added to the {roleName} role");
-                    return Ok(new { result = $"Claim {claim} added to the {roleName} role" });
-                }
-                else
-                {
-                    _logger.LogInformation(1, $"Error: Unable to add Claim {claim} to the {roleName} role");
-                    return BadRequest(new { error = $"Error: Unable to add Claim {claim} to the {roleName} role" });
-                }
+                var errs = string.Join("; ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed to add claim {Claim} to role {Role}: {Errors}", dto.ClaimValue, dto.RoleName, errs);
+                return BadRequest(new ApiResponse($"Failed to add claim {dto.ClaimValue} to role {dto.RoleName}", errs));
             }
-            return BadRequest(new { error = "Unable to find role " + roleName });
+
+            _logger.LogInformation("Claim {Claim} added to role {Role}", dto.ClaimValue, dto.RoleName);
+            return Ok(new ApiResponse($"Claim {dto.ClaimValue} added to role {dto.RoleName}"));
         }
 
-
-        [HttpPost]
-        [Route("RemoveClaimFromRole")]
-        public async Task<IActionResult> RemoveClaimFromRole(string roleName, string claim)
+        [HttpPost("RemoveClaimFromRole")]
+        public async Task<IActionResult> RemoveClaimFromRole([FromBody] RoleToClaimDto dto)
         {
-            var role = await _roleManager.FindByNameAsync(roleName);
+            var role = await _roleManager.FindByNameAsync(dto.RoleName);
+            if (role == null)
+                return NotFound(new ApiResponse($"Role {dto.RoleName} not found"));
 
-            if (role != null)
+            var result = await _roleManager.RemoveClaimAsync(role, new Claim(Constants.CREDENTIAL_CLAIM, dto.ClaimValue));
+            if (!result.Succeeded)
             {
-                var result = await _roleManager.RemoveClaimAsync(role, new Claim(Constants.CREDENTIAL_CLAIM, claim));
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation(1, $"Claim {claim} removed from the {roleName} role");
-                    return Ok(new { result = $"Claim {claim} removed from the {roleName} role" });
-                }
-                else
-                {
-                    _logger.LogInformation(1, $"Error: Unable to remove claim {claim} from the {roleName} role");
-                    return BadRequest(new { error = $"Error: Unable to remove claim {claim} from the {roleName} role" });
-                }
+                var errs = string.Join("; ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed to remove claim {Claim} from role {Role}: {Errors}", dto.ClaimValue, dto.RoleName, errs);
+                return BadRequest(new ApiResponse($"Failed to remove claim {dto.ClaimValue} from role {dto.RoleName}", errs));
             }
-            return BadRequest(new { error = "Unable to find role " + roleName });
+
+            _logger.LogInformation("Claim {Claim} removed from role {Role}", dto.ClaimValue, dto.RoleName);
+            return Ok(new ApiResponse($"Claim {dto.ClaimValue} removed from role {dto.RoleName}"));
         }
     }
 }

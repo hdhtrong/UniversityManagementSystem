@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var majors = await _majorService.GetAll();
             var result = _mapper.Map<IEnumerable<EduMajorDto>>(majors);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all majors successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var major = await _majorService.GetById(id);
             if (major == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Major not found"));
 
             var dto = _mapper.Map<EduMajorDto>(major);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched major successfully", dto));
         }
 
         [HttpPost]
@@ -50,14 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduMajorDto dto)
         {
             if (dto == null)
-                return BadRequest("Major data is required");
+                return BadRequest(new ApiResponse("Major data is required"));
 
             var entity = _mapper.Map<EduMajor>(dto);
             var result = await _majorService.Create(entity);
-            if (result)
-                return Ok("Major created successfully");
 
-            return StatusCode(500, "Failed to create major");
+            if (result)
+                return Ok(new ApiResponse("Major created successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to create major"));
         }
 
         [HttpPut("{id}")]
@@ -65,21 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduMajorDto dto)
         {
             if (dto == null || id != dto.MajorID.ToString())
-                return BadRequest("Invalid major data");
+                return BadRequest(new ApiResponse("Invalid major data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existingMajor = await _majorService.GetById(guidId);
             if (existingMajor == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Major not found"));
 
             var entity = _mapper.Map<EduMajor>(dto);
             var result = await _majorService.Update(entity);
-            if (result)
-                return Ok("Major updated successfully");
 
-            return StatusCode(500, "Failed to update major");
+            if (result)
+                return Ok(new ApiResponse("Major updated successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to update major"));
         }
 
         [HttpDelete("{id}")]
@@ -87,17 +90,18 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existingMajor = await _majorService.GetById(guidId);
             if (existingMajor == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Major not found"));
 
             var result = await _majorService.Delete(guidId);
-            if (result)
-                return Ok("Major deleted successfully");
 
-            return StatusCode(500, "Failed to delete major");
+            if (result)
+                return Ok(new ApiResponse("Major deleted successfully"));
+
+            return StatusCode(500, new ApiResponse("Failed to delete major"));
         }
 
         [HttpPost("filter")]
@@ -105,16 +109,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var majors = _majorService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduMajorDto>>(majors);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched majors with filter successfully", responseData));
         }
     }
 }

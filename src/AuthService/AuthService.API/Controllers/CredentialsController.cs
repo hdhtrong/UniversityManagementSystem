@@ -5,6 +5,7 @@ using AuthService.Domain.Entities;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SharedKernel.Models;
 
 namespace AuthService.API.Controllers
 {
@@ -28,42 +29,53 @@ namespace AuthService.API.Controllers
         {
             var entities = await _service.GetAllAsync();
             var dtos = _mapper.Map<IEnumerable<CredentialDto>>(entities);
-            return Ok(dtos);
+            return Ok(new ApiResponse("Fetched all credentials successfully", dtos));
         }
 
         [HttpGet("{name}")]
         public async Task<IActionResult> GetByName(string name)
         {
             var entity = await _service.GetByNameAsync(name);
-            if (entity == null) return NotFound();
+            if (entity == null)
+                return NotFound(new ApiResponse($"Credential '{name}' not found"));
+
             var dto = _mapper.Map<CredentialDto>(entity);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched credential successfully", dto));
         }
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CredentialDto dto)
         {
-            if(dto == null || string.IsNullOrEmpty(dto.Name)) return BadRequest();
-            var check = await _service.GetByNameAsync(dto.Name);
-            if(check != null) return BadRequest(dto.Name + " already exists!");
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
+                return BadRequest(new ApiResponse("Invalid credential data"));
+
+            var existing = await _service.GetByNameAsync(dto.Name);
+            if (existing != null)
+                return BadRequest(new ApiResponse($"Credential '{dto.Name}' already exists"));
+
             var entity = _mapper.Map<AppCredential>(dto);
             await _service.CreateAsync(entity);
-            return CreatedAtAction(nameof(GetByName), new { name = dto.Name }, dto);
+
+            return Ok(new ApiResponse("Credential created successfully", dto));
         }
 
         [HttpPut("{name}")]
         public async Task<IActionResult> Update(string name, [FromBody] CredentialDto dto)
         {
+            if (dto == null)
+                return BadRequest(new ApiResponse("Invalid credential data"));
+
             var entity = _mapper.Map<AppCredential>(dto);
             await _service.UpdateAsync(name, entity);
-            return NoContent();
+
+            return Ok(new ApiResponse($"Credential '{name}' updated successfully", dto));
         }
 
         [HttpDelete("{name}")]
         public async Task<IActionResult> Delete(string name)
         {
             await _service.DeleteAsync(name);
-            return NoContent();
+            return Ok(new ApiResponse($"Credential '{name}' deleted successfully"));
         }
     }
 }

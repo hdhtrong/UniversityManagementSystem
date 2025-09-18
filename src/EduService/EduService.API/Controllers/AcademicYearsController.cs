@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,93 +31,86 @@ namespace EduService.API.Controllers
         {
             var years = await _yearService.GetAll();
             var result = _mapper.Map<IEnumerable<EduAcademicYearDto>>(years);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all academic years", result));
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(Guid id)
         {
             var year = await _yearService.GetByIdAsync(id);
             if (year == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Academic year not found"));
 
             var dto = _mapper.Map<EduAcademicYearDto>(year);
-            return Ok(dto);
+            return Ok(new ApiResponse("Academic year fetched successfully", dto));
         }
 
         [HttpPost]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
         public async Task<IActionResult> Create([FromBody] EduAcademicYearDto dto)
         {
-            if (dto == null)
-                return BadRequest("Academic year data is required");
-
             var entity = _mapper.Map<EduAcademicYear>(dto);
             var result = await _yearService.Create(entity);
 
-            if (result)
-                return Ok("Academic year created successfully");
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to create academic year"));
 
-            return StatusCode(500, "Failed to create academic year");
+            return CreatedAtAction(nameof(GetById), new { id = entity.YearID },
+                new ApiResponse("Academic year created successfully", dto));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
-        public async Task<IActionResult> Update(string id, [FromBody] EduAcademicYearDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] EduAcademicYearDto dto)
         {
-            if (dto == null || id != dto.YearID.ToString())
-                return BadRequest("Invalid academic year data");
+            if (id != dto.YearID)
+                return BadRequest(new ApiResponse("ID mismatch"));
 
-            if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
-
-            var existing = await _yearService.GetById(guidId);
+            var existing = await _yearService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Academic year not found"));
 
             var entity = _mapper.Map<EduAcademicYear>(dto);
             var result = await _yearService.Update(entity);
 
-            if (result)
-                return Ok("Academic year updated successfully");
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to update academic year"));
 
-            return StatusCode(500, "Failed to update academic year");
+            return Ok(new ApiResponse("Academic year updated successfully", dto));
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(Guid id)
         {
-            if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
-
-            var existing = await _yearService.GetById(guidId);
+            var existing = await _yearService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Academic year not found"));
 
-            var result = await _yearService.Delete(guidId);
-            if (result)
-                return Ok("Academic year deleted successfully");
+            var result = await _yearService.Delete(id);
+            if (!result)
+                return StatusCode(500, new ApiResponse("Failed to delete academic year"));
 
-            return StatusCode(500, "Failed to delete academic year");
+            return Ok(new ApiResponse("Academic year deleted successfully"));
         }
 
         [HttpPost("filter")]
         [Authorize(AuthenticationSchemes = "Bearer", Roles = "EduManager")]
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
-            if (filter == null)
-                return BadRequest("Filter is null");
-
             var years = _yearService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduAcademicYearDto>>(years);
 
-            return Ok(new
+            var response = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Paged academic years fetched successfully", response));
         }
     }
 }

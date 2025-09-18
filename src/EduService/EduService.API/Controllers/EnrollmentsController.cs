@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var enrollments = await _enrollmentService.GetAll();
             var result = _mapper.Map<IEnumerable<EduEnrollmentDto>>(enrollments);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all enrollments successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var enrollment = await _enrollmentService.GetById(id);
             if (enrollment == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Enrollment not found"));
 
             var dto = _mapper.Map<EduEnrollmentDto>(enrollment);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched enrollment successfully", dto));
         }
 
         [HttpPost]
@@ -50,14 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduEnrollmentDto dto)
         {
             if (dto == null)
-                return BadRequest("Enrollment data is required");
+                return BadRequest(new ApiResponse("Enrollment data is required"));
 
             var entity = _mapper.Map<EduEnrollment>(dto);
             var result = await _enrollmentService.Create(entity);
-            if (result)
-                return Ok("Enrollment created successfully");
 
-            return StatusCode(500, "Failed to create enrollment");
+            if (result)
+                return Ok(new ApiResponse("Enrollment created successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to create enrollment"));
         }
 
         [HttpPut("{id}")]
@@ -65,21 +67,22 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(string id, [FromBody] EduEnrollmentDto dto)
         {
             if (dto == null || id != dto.EnrollmentID.ToString())
-                return BadRequest("Invalid enrollment data");
+                return BadRequest(new ApiResponse("Invalid enrollment data"));
 
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _enrollmentService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Enrollment not found"));
 
             var entity = _mapper.Map<EduEnrollment>(dto);
             var result = await _enrollmentService.Update(entity);
-            if (result)
-                return Ok("Enrollment updated successfully");
 
-            return StatusCode(500, "Failed to update enrollment");
+            if (result)
+                return Ok(new ApiResponse("Enrollment updated successfully", dto));
+
+            return StatusCode(500, new ApiResponse("Failed to update enrollment"));
         }
 
         [HttpDelete("{id}")]
@@ -87,17 +90,18 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             if (!Guid.TryParse(id, out Guid guidId))
-                return BadRequest("Invalid GUID format");
+                return BadRequest(new ApiResponse("Invalid GUID format"));
 
             var existing = await _enrollmentService.GetById(guidId);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Enrollment not found"));
 
             var result = await _enrollmentService.Delete(guidId);
-            if (result)
-                return Ok("Enrollment deleted successfully");
 
-            return StatusCode(500, "Failed to delete enrollment");
+            if (result)
+                return Ok(new ApiResponse("Enrollment deleted successfully"));
+
+            return StatusCode(500, new ApiResponse("Failed to delete enrollment"));
         }
 
         [HttpPost("filter")]
@@ -105,16 +109,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var enrollments = _enrollmentService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduEnrollmentDto>>(enrollments);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched enrollments with filter successfully", responseData));
         }
     }
 }

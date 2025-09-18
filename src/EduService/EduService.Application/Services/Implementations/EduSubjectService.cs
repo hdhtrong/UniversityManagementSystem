@@ -56,7 +56,8 @@ namespace EduService.Application.Services.Implementations
 
         public IQueryable<EduSubject> GetByFilterPaging(FilterRequest filter, out int total)
         {
-            return _unitOfWork.SubjectRepository.GetByFilter(filter, out total, null);
+            var allowedFields = new HashSet<string> { "SubjectCode", "SubjectName", "SubjectID" };
+            return _unitOfWork.SubjectRepository.GetByFilter(filter, out total, allowedFields, null);
         }
 
         public async Task<EduSubject> GetById(Guid id)

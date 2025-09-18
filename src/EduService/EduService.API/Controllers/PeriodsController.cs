@@ -6,6 +6,7 @@ using EduService.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.SharedKernel.Models;
+using SharedKernel.Models;
 
 namespace EduService.API.Controllers
 {
@@ -30,7 +31,7 @@ namespace EduService.API.Controllers
         {
             var periods = await _periodService.GetAll();
             var result = _mapper.Map<IEnumerable<EduPeriodDto>>(periods);
-            return Ok(result);
+            return Ok(new ApiResponse("Fetched all periods successfully", result));
         }
 
         [HttpGet("{id}")]
@@ -39,10 +40,10 @@ namespace EduService.API.Controllers
         {
             var period = await _periodService.GetById(id);
             if (period == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Period not found"));
 
             var dto = _mapper.Map<EduPeriodDto>(period);
-            return Ok(dto);
+            return Ok(new ApiResponse("Fetched period successfully", dto));
         }
 
         [HttpPost]
@@ -50,15 +51,15 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Create([FromBody] EduPeriodDto dto)
         {
             if (dto == null)
-                return BadRequest("Period data is required");
+                return BadRequest(new ApiResponse("Period data is required"));
 
             var entity = _mapper.Map<EduPeriod>(dto);
             var result = await _periodService.Create(entity);
 
             if (result)
-                return Ok("Period created successfully");
+                return Ok(new ApiResponse("Period created successfully", dto));
 
-            return StatusCode(500, "Failed to create period");
+            return StatusCode(500, new ApiResponse("Failed to create period"));
         }
 
         [HttpPut("{id}")]
@@ -66,19 +67,19 @@ namespace EduService.API.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] EduPeriodDto dto)
         {
             if (dto == null || id != dto.PeriodNumber)
-                return BadRequest("Invalid period data");
+                return BadRequest(new ApiResponse("Invalid period data"));
 
             var existing = await _periodService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Period not found"));
 
             var entity = _mapper.Map<EduPeriod>(dto);
             var result = await _periodService.Update(entity);
 
             if (result)
-                return Ok("Period updated successfully");
+                return Ok(new ApiResponse("Period updated successfully", dto));
 
-            return StatusCode(500, "Failed to update period");
+            return StatusCode(500, new ApiResponse("Failed to update period"));
         }
 
         [HttpDelete("{id}")]
@@ -87,13 +88,13 @@ namespace EduService.API.Controllers
         {
             var existing = await _periodService.GetById(id);
             if (existing == null)
-                return NotFound();
+                return NotFound(new ApiResponse("Period not found"));
 
             var result = await _periodService.Delete(id);
             if (result)
-                return Ok("Period deleted successfully");
+                return Ok(new ApiResponse("Period deleted successfully"));
 
-            return StatusCode(500, "Failed to delete period");
+            return StatusCode(500, new ApiResponse("Failed to delete period"));
         }
 
         [HttpPost("filter")]
@@ -101,16 +102,20 @@ namespace EduService.API.Controllers
         public IActionResult GetByFilterPaging([FromBody] FilterRequest filter)
         {
             if (filter == null)
-                return BadRequest("Filter is null");
+                return BadRequest(new ApiResponse("Filter is null"));
 
             var periods = _periodService.GetByFilterPaging(filter, out int total).ToList();
             var dtoList = _mapper.Map<List<EduPeriodDto>>(periods);
 
-            return Ok(new
+            var responseData = new
             {
+                filter.PageIndex,
+                filter.PageSize,
                 Total = total,
                 Data = dtoList
-            });
+            };
+
+            return Ok(new ApiResponse("Fetched periods with filter successfully", responseData));
         }
     }
 }

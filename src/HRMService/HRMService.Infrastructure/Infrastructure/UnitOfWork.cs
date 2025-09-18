@@ -1,5 +1,6 @@
 ﻿
 using HRMService.Infrastructure.Interfaces;
+using HRMService.Infrastructure.Repositories.Interfaces;
 
 namespace HRMService.Infrastructure
 {
@@ -8,11 +9,13 @@ namespace HRMService.Infrastructure
         private readonly HrmDbContext _dbContext;
 
         public IHrmDepartmentRepository DepartmentRepository { get; }
+        public IHrmEmployeeRepository EmployeeRepository { get; }
 
-        public UnitOfWork(HrmDbContext dbContext, IHrmDepartmentRepository deptRepository)
+        public UnitOfWork(HrmDbContext dbContext, IHrmDepartmentRepository deptRepository, IHrmEmployeeRepository employeeRepository)
         {
             _dbContext = dbContext;
             DepartmentRepository = deptRepository;
+            EmployeeRepository = employeeRepository;
         }
 
         public int Save()

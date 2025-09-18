@@ -41,7 +41,8 @@ namespace EduService.Application.Services.Implementations
 
         public IQueryable<EduInvoice> GetByFilterPaging(FilterRequest filter, out int total)
         {
-            return _unitOfWork.InvoiceRepository.GetByFilter(filter, out total, null);
+            var allowedFields = new HashSet<string> { "InvoiceNumber", "StudentID", "SemesterCode", "TuitionFeeID" };
+            return _unitOfWork.InvoiceRepository.GetByFilter(filter, out total, allowedFields, ["TuitionFee", "TuitionFee.Student", "TuitionFee.Semester"]);
         }
 
         public async Task<EduInvoice> GetById(Guid id)

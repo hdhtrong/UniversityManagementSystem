@@ -3,7 +3,8 @@
 namespace AuthService.Models
 {
     public class UserDto
-    {
+    { 
+        public string Id { get; set; }
 
         [Required]
         public string Email { get; set; }

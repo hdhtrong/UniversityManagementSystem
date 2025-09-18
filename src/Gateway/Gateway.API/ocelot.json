@@ -7,7 +7,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7000
+          "Port": 9000
         }
       ],
       "UpstreamPathTemplate": "/api/auth/v1/auth/{everything}",
@@ -19,7 +19,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7000
+          "Port": 9000
         }
       ],
       "UpstreamPathTemplate": "/api/auth/v1/users/{everything}",
@@ -31,7 +31,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7000
+          "Port": 9000
         }
       ],
       "UpstreamPathTemplate": "/api/auth/v1/roles/{everything}",
@@ -45,7 +45,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/students/{everything}",
@@ -57,7 +57,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/departments/{everything}",
@@ -69,7 +69,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/instructors/{everything}",
@@ -81,7 +81,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/majors/{everything}",
@@ -93,7 +93,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/classes/{everything}",
@@ -105,7 +105,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/programs/{everything}",
@@ -117,7 +117,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/subjects/{everything}",
@@ -129,7 +129,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/curriculums/{everything}",
@@ -141,7 +141,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/academicyears/{everything}",
@@ -153,7 +153,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/semesters/{everything}",
@@ -165,7 +165,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/weeks/{everything}",
@@ -177,7 +177,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/periods/{everything}",
@@ -189,7 +189,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/rooms/{everything}",
@@ -201,7 +201,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/enrollments/{everything}",
@@ -213,7 +213,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/grades/{everything}",
@@ -225,7 +225,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/coursesections/{everything}",
@@ -237,7 +237,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/tuitionfees/{everything}",
@@ -249,7 +249,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/invoices/{everything}",
@@ -261,7 +261,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7001
+          "Port": 9001
         }
       ],
       "UpstreamPathTemplate": "/api/edu/v1/studentportal/{everything}",
@@ -275,10 +275,22 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7002
+          "Port": 9002
         }
       ],
       "UpstreamPathTemplate": "/api/hrm/v1/departments/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/hrm/v1/employees/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 9002
+        }
+      ],
+      "UpstreamPathTemplate": "/api/hrm/v1/employees/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ]
     },
     //-------ORDService------//
@@ -288,7 +300,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7003
+          "Port": 9003
         }
       ],
       "UpstreamPathTemplate": "/api/ord/v1/researchprojects/{everything}",
@@ -296,6 +308,6 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "http://localhost:7777"
+    "BaseUrl": "http://localhost:9999"
   }
 }

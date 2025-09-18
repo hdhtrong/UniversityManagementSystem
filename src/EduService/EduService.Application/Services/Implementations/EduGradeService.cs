@@ -33,8 +33,11 @@ namespace EduService.Application.Services.Implementations
         public async Task<IEnumerable<EduGrade>> GetAll() =>
             await _unitOfWork.GradeRepository.GetAll();
 
-        public IQueryable<EduGrade> GetByFilterPaging(FilterRequest filter, out int total) =>
-            _unitOfWork.GradeRepository.GetByFilter(filter, out total, null);
+        public IQueryable<EduGrade> GetByFilterPaging(FilterRequest filter, out int total)
+        {
+            var allowedFields = new HashSet<string> { "EnrollmentID"};
+            return _unitOfWork.GradeRepository.GetByFilter(filter, out total, allowedFields, ["Enrollment", "Enrollment.Student", "Enrollment.Section"]);
+        }
 
         public async Task<EduGrade> GetById(Guid id) =>
             await _unitOfWork.GradeRepository.GetById(id);

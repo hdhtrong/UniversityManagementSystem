@@ -1,4 +1,5 @@
 ﻿using Asp.Versioning;
+using AuthService.API.Models;
 using AuthService.API.Utils;
 using AuthService.Applications.Services;
 using AuthService.Domain.Entities;
@@ -6,10 +7,13 @@ using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Shared.SharedAuth.Models;
 using Shared.SharedKernel;
 using SharedKernel.Infrastructure;
 using SharedKernel.Messages;
+using SharedKernel.Models;
+using System.Text;
 
 namespace AuthService.API.Controllers
 {
@@ -18,53 +22,55 @@ namespace AuthService.API.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-
         private readonly RoleManager<AppRole> _roleManager;
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly IJwtManagerService _jwtManager;
-
         private readonly ILogger<AuthController> _logger;
-
-        private readonly LinkGenerator _linkGenerator;
-
         private readonly IPublishEndpoint _publish;
-
         private readonly RabbitMqHealthChecker _rabbitChecker;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(RoleManager<AppRole> roleManager, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager,
-            IJwtManagerService jWTManager, ILogger<AuthController> logger, IPublishEndpoint publish, LinkGenerator linkGenerator, RabbitMqHealthChecker rabbitChecker)
+        public AuthController(
+            RoleManager<AppRole> roleManager,
+            UserManager<AppUser> userManager,
+            SignInManager<AppUser> signInManager,
+            IJwtManagerService jWTManager,
+            ILogger<AuthController> logger,
+            IPublishEndpoint publish,
+            RabbitMqHealthChecker rabbitChecker,
+            IConfiguration configuration)
         {
             _roleManager = roleManager;
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtManager = jWTManager;
             _logger = logger;
-            _linkGenerator = linkGenerator;
             _publish = publish;
             _rabbitChecker = rabbitChecker;
+            _configuration = configuration;
         }
 
         [HttpPost("authenticate-password")]
         [AllowAnonymous]
-        public async Task<ActionResult> AuthenticatePassword([FromForm] string username, [FromForm] string password)
+        public async Task<ActionResult<ApiResponse>> AuthenticatePassword([FromBody] AuthenticationPasswordDto dto)
         {
             try
             {
-                _logger.LogInformation("Authentication attempt for username: {Username}", username);
+                _logger.LogInformation("Authentication attempt for username: {Username}", dto.Username);
 
-                var user = await _userManager.FindByNameAsync(username);
+                var user = await _userManager.FindByNameAsync(dto.Username);
                 if (user == null)
                 {
-                    _logger.LogWarning("Authentication failed: Username '{Username}' not found", username);
-                    return BadRequest("Username does not exist in the database!");
+                    _logger.LogWarning("Authentication failed: Username '{Username}' not found", dto.Username);
+                    return BadRequest(new ApiResponse("Username does not exist in the database!"));
                 }
 
-                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, true);
+                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, true);
                 if (!signInResult.Succeeded)
                 {
-                    _logger.LogWarning("Authentication failed for username: {Username} - Incorrect password", username);
-                    return BadRequest("Incorrect password!");
+                    _logger.LogWarning("Authentication failed for username: {Username} - Incorrect password", dto.Username);
+                    return BadRequest(new ApiResponse("Incorrect password!"));
                 }
 
                 var signInUser = new SignInUser
@@ -76,146 +82,174 @@ namespace AuthService.API.Controllers
                 FindRolesAndAllClaims(user, signInUser);
                 var tokens = _jwtManager.GenerateTokens(signInUser);
 
-                _logger.LogInformation("User '{Username}' authenticated successfully", username);
+                _logger.LogInformation("User '{Username}' authenticated successfully", dto.Username);
 
-                return Ok(tokens);
+                return Ok(new ApiResponse("Authenticated successfully", tokens));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred during authentication for username: {Username}", username);
-                return BadRequest("Internal server error");
+                _logger.LogError(ex, "Error occurred during authentication for username: {Username}", dto.Username);
+                return StatusCode(500, new ApiResponse("Internal server error"));
             }
         }
 
         [HttpPut("change-password")]
         [AllowAnonymous]
-        public async Task<ActionResult> ChangePassword([FromForm] string username, [FromForm] string currentPassword, [FromForm] string newPassword)
+        public async Task<ActionResult<ApiResponse>> ChangePassword([FromBody] ChangePasswordDto dto)
         {
             try
             {
-                var user = await _userManager.FindByNameAsync(username);
+                var user = await _userManager.FindByNameAsync(dto.Username);
                 if (user == null)
                 {
-                    return BadRequest("Username does not exist!");
-                }
-                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, currentPassword, true);
-                if (!signInResult.Succeeded)
-                {
-                    return BadRequest("Incorrect current password!");
+                    return BadRequest(new ApiResponse("Username does not exist!"));
                 }
 
-                var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, dto.CurrentPassword, true);
+                if (!signInResult.Succeeded)
+                {
+                    return BadRequest(new ApiResponse("Incorrect current password!"));
+                }
+
+                var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
                 if (result.Succeeded)
                 {
-                    return Ok("Password changed successfully");
+                    return Ok(new ApiResponse("Password changed successfully"));
                 }
                 else
                 {
-                    string errs = "";
-                    foreach (var err in result.Errors)
-                    {
-                        errs += err.Description + "\n ";
-                    }
-                    _logger.LogInformation(2, "Error: " + errs);
-                    return BadRequest(new { error = $"Issue changing password of the user {username}, errors: " + errs });
+                    var errs = string.Join("; ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Error changing password for {Username}: {Errors}", dto.Username, errs);
+                    return BadRequest(new ApiResponse($"Issue changing password: {errs}"));
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error occurred when changing password of username: " + username + ", err: " + ex.Message);
-                return BadRequest("Error occurred when changing password");
+                _logger.LogError(ex, "Error occurred when changing password for {Username}", dto.Username);
+                return StatusCode(500, new ApiResponse("Error occurred when changing password"));
             }
         }
 
-        public record ForgotPasswordRequest(string Email);
+        public record ForgotPasswordRequestDto(string Email);
 
         [HttpPut("forgot-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        public async Task<ActionResult<ApiResponse>> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
         {
-            var user = await _userManager.FindByEmailAsync(request.Email);
+            // Tìm user theo email, không tiết lộ kết quả
+            var user = await _userManager.FindByEmailAsync(dto.Email);
+
+            // Luôn trả về generic response
+            var response = new ApiResponse("If the email exists, a password reset link has been sent.");
+
             if (user == null)
-                return Ok(); // Không tiết lộ user tồn tại hay không
+                return Ok(response);
 
+            // Tạo token
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var encodedToken = System.Web.HttpUtility.UrlEncode(token);
 
-            // Sinh URL động dựa vào route + version
-            var resetLink = _linkGenerator.GetUriByAction(
-                HttpContext,
-                action: "ResetPassword",
-                controller: "Auth",
-                values: new { version = "1", email = request.Email, token = encodedToken }
-            );
+            // Encode token URL-safe bằng WebEncoders
+            var tokenBytes = Encoding.UTF8.GetBytes(token);
+            var encodedToken = WebEncoders.Base64UrlEncode(tokenBytes);
 
+            // Lấy URL front-end reset password
+            var frontEndUrl = _configuration["Frontend:ResetPasswordUrl"];
+            frontEndUrl = string.IsNullOrWhiteSpace(frontEndUrl) ? "http://localhost:4200/reset-password" : frontEndUrl;
+
+            // Link reset dẫn tới front-end, encode email để an toàn
+            var resetLink = $"{frontEndUrl}?email={Uri.EscapeDataString(user.Email)}&token={encodedToken}";
+
+            // Gửi email nếu RabbitMQ khả dụng
             if (await _rabbitChecker.IsAvailableAsync())
             {
                 await _publish.Publish(new SendEmailMessage(
-                    request.Email,
-                    "HCMIU System-Reset your password for account",
-                    $"Click this link to reset: {resetLink}"
+                    dto.Email,
+                    "HCMIU System - Reset your password",
+                    $"Click this link to reset your password: {resetLink}"
                 ));
             }
             else
             {
-                _logger.LogWarning("RabbitMQ is not available, cannot send reset email to {Email}", request.Email);
-                return StatusCode(503, "Service temporarily unavailable (email not sent)");
+                _logger.LogWarning("RabbitMQ not available, cannot send reset email to {Email}", dto.Email);
             }
 
-            return Ok("Reset link sent via email");
+            return Ok(response);
         }
 
-        [HttpGet("reset-password")]
+        [HttpPut("reset-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ResetPassword([FromQuery] string email, [FromQuery] string token)
+        public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordByLinkDto dto)
         {
+            // Decode email
+            var email = Uri.UnescapeDataString(dto.Email);
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
-                return BadRequest("Invalid request");
+                return BadRequest(new ApiResponse("Invalid request"));
 
-            // Sinh password mới tạm thời
-            var newPassword = PasswordGenerator.GeneratePassword(6);
+            // Xác định password: nếu user gửi thì dùng, nếu không thì tạo ngẫu nhiên
+            var isGeneratedPassword = string.IsNullOrEmpty(dto.NewPassword);
+            var newPassword = isGeneratedPassword ? PasswordGenerator.GeneratePassword(6) : dto.NewPassword;
 
-            var decodedToken = System.Web.HttpUtility.UrlDecode(token);
-            // Reset password
-            var resetResult = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
-            if (!resetResult.Succeeded)
-                return BadRequest(resetResult.Errors);
-
-            if (await _rabbitChecker.IsAvailableAsync())
+            // Decode token Base64 URL-safe bằng WebEncoders
+            try
             {
-                // Gửi mail thông báo password mới
-                await _publish.Publish(new SendEmailMessage(
-                    user.Email,
-                    "HCMIU System-Your new password",
-                    $"Your new password is: {newPassword}. Please change it after your first login!"));
+                var decodedBytes = WebEncoders.Base64UrlDecode(dto.Token);
+                var decodedToken = Encoding.UTF8.GetString(decodedBytes);
+
+                var resetResult = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
+
+                if (!resetResult.Succeeded)
+                {
+                    var errs = string.Join("; ", resetResult.Errors.Select(e => e.Description));
+                    return BadRequest(new ApiResponse($"Failed to reset password: {errs}"));
+                }
             }
-            else
+            catch
             {
-                _logger.LogWarning("RabbitMQ is not available, cannot send reset email to {Email}", email);
-                return Ok($"Password has been reset to: {newPassword}. But email not sent.");
+                return BadRequest(new ApiResponse("Invalid token format"));
             }
 
-            return Ok("Password has been reset. Check your email.");
+            // Nếu là password tự tạo, gửi email
+            if (isGeneratedPassword)
+            {
+                if (await _rabbitChecker.IsAvailableAsync())
+                {
+                    await _publish.Publish(new SendEmailMessage(
+                        user.Email,
+                        "HCMIU System - Your new password",
+                        $"Your new password is: {newPassword}. Please change it after your first login!"
+                    ));
+                }
+                else
+                {
+                    _logger.LogWarning("RabbitMQ not available, cannot send reset email to {Email}", dto.Email);
+                    return Ok(new ApiResponse("Password has been reset. But email with new password could not be sent."));
+                }
+            }
+
+            return Ok(new ApiResponse("Password has been reset successfully."));
         }
 
         private void FindRolesAndAllClaims(AppUser user, SignInUser signInUser)
         {
-            // get all roles of user
             var strRoles = _userManager.GetRolesAsync(user).Result;
-            List<string> allClaims = new List<string>(); // list all claims (role claims and user claims)
-            // for each role, get related claims (credential) of that role
+            var allClaims = new List<string>();
+
             foreach (var role in strRoles)
             {
                 var appRole = _roleManager.FindByNameAsync(role).Result;
                 if (appRole != null)
                 {
-                    var roleClaims = _roleManager.GetClaimsAsync(appRole).Result.Where(c => c.Type.Equals(Constants.CREDENTIAL_CLAIM)).Select(c => c.Value);
+                    var roleClaims = _roleManager.GetClaimsAsync(appRole).Result
+                        .Where(c => c.Type.Equals(Constants.CREDENTIAL_CLAIM))
+                        .Select(c => c.Value);
                     allClaims.AddRange(roleClaims);
                 }
             }
-            // get all claims of user
-            var userClaims = _userManager.GetClaimsAsync(user).Result.Where(c => c.Type.Equals(Constants.CREDENTIAL_CLAIM)).Select(c => c.Value);
+
+            var userClaims = _userManager.GetClaimsAsync(user).Result
+                .Where(c => c.Type.Equals(Constants.CREDENTIAL_CLAIM))
+                .Select(c => c.Value);
             allClaims.AddRange(userClaims);
 
             signInUser.Roles = strRoles.ToList();
